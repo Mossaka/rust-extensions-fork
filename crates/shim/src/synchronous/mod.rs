@@ -243,6 +243,12 @@ where
         "delete" => {
             std::thread::spawn(move || handle_signals(signals));
             let response = shim.delete_shim()?;
+
+            // NOTE: If the shim server is down(like oom killer), the address
+            // socket might be leaking.
+            let address = read_address()?;
+            remove_socket_silently(&address);
+
             let stdout = std::io::stdout();
             let mut locked = stdout.lock();
             response.write_to_writer(&mut locked)?;
@@ -280,10 +286,6 @@ where
             info!("Shutting down shim instance");
             server.shutdown();
 
-            // NOTE: If the shim server is down(like oom killer), the address
-            // socket might be leaking.
-            let address = read_address()?;
-            remove_socket_silently(&address);
             Ok(())
         }
     }
